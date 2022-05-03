@@ -1,6 +1,48 @@
+from multiprocessing.connection import wait
 import aspose.slides as slides
 import pandas as pd
 import requests
+from flask import Flask, request, Blueprint, jsonify
+import json
+from flask_cors import CORS
+import time
+
+app = Flask(__name__)
+CORS(app)
+
+
+@app.route('/', methods=['POST', 'GET'])
+def main():
+    if request.method == 'POST':
+        output = json.loads(request.get_json())
+        output = {
+            'excel_file': output['y'], 'ppt_file': output['x'], 'credential': output['z']}
+
+        # x = {"response": botnoi_voice(
+        #     excel_file, ppt_file, credential)['audio_url']}
+        scripts_df = format_scripts_file(
+            output['excel_file'], output['credential'])
+        for url, filename in zip(scripts_df['audio_url'].values, scripts_df['voice_file_name'].values):
+            DownloadFile(url, f'./voices/{filename}')
+        voiceNames = format_voice_name(
+            scripts_df['slide'], scripts_df['voice_file_name'])
+        result = embed_voice_in_pptx(output['ppt_file'], voiceNames)
+
+        return result
+    if request.method == 'GET':
+        q = request.args.get('q')
+        return {'result': q}
+
+
+def botnoi_voice(sentence, speaker, credential):
+    url = "https://voice.botnoi.ai/api/service/generate_audio"
+    payload = {"text": sentence, "speaker": speaker,
+               "volume": 1, "speed": 1, "type_media": "wav"}
+    headers = {
+        'Botnoi-Token': credential
+    }
+    response = requests.request("POST", url, headers=headers, json=payload)
+    return response.json()
 
 
 def format_scripts_file(filepath, credential):
@@ -42,7 +84,7 @@ def format_scripts_file(filepath, credential):
     }
     scripts = pd.read_excel(filepath)
     scripts['slide'] = scripts['slide'].values.astype('int64')
-    scripts['audio_url'] = [botnoi_voice(sentence, speakerEnum[speaker], credential) for sentence, speaker in zip(
+    scripts['audio_url'] = [botnoi_voice(sentence, speakerEnum[speaker], credential)['audio_url'] for sentence, speaker in zip(
         scripts['sentence'].values, scripts['speaker'].values)]
     scripts['voice_file_name'] = scripts['audio_url'].apply(
         lambda url: url.split('_')[-1])
@@ -65,19 +107,8 @@ def format_voice_name(slideSeries, voiceFileNameSeries):
     return result
 
 
-def botnoi_voice(sentence, speaker, credential):
-    url = "https://voice.botnoi.ai/api/service/generate_audio"
-    payload = {"text": sentence, "speaker": speaker,
-               "volume": 1, "speed": 1, "type_media": "wav"}
-    headers = {
-        'Botnoi-Token': credential
-    }
-    response = requests.request("POST", url, headers=headers, json=payload)
-    return response.json()['audio_url']
-
-
 def DownloadFile(url, fn):
-    #local_filename = 'test.mp3'
+    # local_filename = 'test.mp3'
     r = requests.get(url)
     with open(fn, 'wb') as f:
         for chunk in r.iter_content(chunk_size=1024):
@@ -108,16 +139,8 @@ def embed_voice_in_pptx(filepath, voiceName2DArray):
         # write the PPTX file to disk
         presentation.save(filepath.split('/')[-1][:-4]+'-embeded.pptx',
                           slides.export.SaveFormat.PPTX)
-        print("completed")
+        return {'result': 'completed'}
 
 
 if __name__ == "__main__":
-    credential = '640a1fc0124837cd91fb07e0c1bcf060a51dc87923bf826116b19ce92a98ba9b'
-    excel_file, ppt_file = input(
-        'please input your flie name ex. scripts.xlsx CH2.ppt: ').split(' ')
-    scripts_df = format_scripts_file(excel_file, credential)
-    for url, filename in zip(scripts_df['audio_url'].values, scripts_df['voice_file_name'].values):
-        DownloadFile(url, f'./voices/{filename}')
-    voiceNames = format_voice_name(
-        scripts_df['slide'], scripts_df['voice_file_name'])
-    embed_voice_in_pptx(ppt_file, voiceNames)
+    app.run(debug=True, host="192.168.43.61")
