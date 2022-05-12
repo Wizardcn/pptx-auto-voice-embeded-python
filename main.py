@@ -14,7 +14,8 @@ CORS(app)
 @app.route('/', methods=['POST', 'GET'])
 def main():
     if request.method == 'POST':
-        output = json.loads(request.get_json())
+        output = request.get_json()
+        print('pass')
         output = {
             'excel_file': output['y'], 'ppt_file': output['x'], 'credential': output['z']}
 
@@ -31,7 +32,7 @@ def main():
         return result
     if request.method == 'GET':
         q = request.args.get('q')
-        return {'result': q}
+        return jsonify({'result': q})
 
 
 def botnoi_voice(sentence, speaker, credential):
@@ -139,7 +140,7 @@ def embed_voice_in_pptx(filepath, voiceName2DArray):
         # write the PPTX file to disk
         presentation.save(filepath.split('/')[-1][:-4]+'-embeded.pptx',
                           slides.export.SaveFormat.PPTX)
-        return {'result': 'completed'}
+        return jsonify({'result': 'completed'})
 
 
 if __name__ == "__main__":
