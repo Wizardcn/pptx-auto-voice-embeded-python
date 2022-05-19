@@ -117,7 +117,6 @@ def DownloadFile(url, fn):
 
 
 def embed_voice_in_pptx(filepath, voiceName2DArray):
-    print(voiceName2DArray)
     # load presentation
     with slides.Presentation(filepath) as presentation:
         try:
