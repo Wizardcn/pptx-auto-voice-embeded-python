@@ -15,7 +15,6 @@ CORS(app)
 def main():
     if request.method == 'POST':
         output = request.get_json()
-        print('pass')
         output = {
             'excel_file': output['y'], 'ppt_file': output['x'], 'credential': output['z']}
 
@@ -98,9 +97,9 @@ def format_voice_name(slideSeries, voiceFileNameSeries):
     result = []
     index = 0
 
-    for sld in list(slideSeries.value_counts().index):
+    for sld in list(slideSeries.value_counts().sort_index().index):
         slide = []
-        for voiceName in range(list(slideSeries.value_counts().values)[sld-1]):
+        for voiceName in range(list(slideSeries.value_counts().sort_index().values)[sld-1]):
             slide.append(list(voiceFileNameSeries.values)[index])
             index += 1
         result.append(slide)
@@ -118,27 +117,31 @@ def DownloadFile(url, fn):
 
 
 def embed_voice_in_pptx(filepath, voiceName2DArray):
+    print(voiceName2DArray)
     # load presentation
     with slides.Presentation(filepath) as presentation:
-        # for slide in presentation.slides:
-        for i in range(len(voiceName2DArray)):
-            slide = presentation.slides[i]
+        try:
+            # for slide in presentation.slides:
+            for i in range(len(voiceName2DArray)):
+                slide = presentation.slides[i]
 
-            # load the wav sound file to stream
-            x_axis = 50
-            for voice in voiceName2DArray[i]:
-                with open(f'./voices/{voice}', "rb") as in_file:
-                    # add audio frame
-                    audio_frame = slide.shapes.add_audio_frame_embedded(
-                        x_axis, 450, 30, 30, in_file)
-                x_axis += 50
+                # load the wav sound file to stream
+                x_axis = 50
+                for voice in voiceName2DArray[i]:
+                    with open(f'./voices/{voice}', "rb") as in_file:
+                        # add audio frame
+                        audio_frame = slide.shapes.add_audio_frame_embedded(
+                            x_axis, 450, 30, 30, in_file)
+                    x_axis += 50
 
-                # set play mode and volume of the audio
-                audio_frame.play_mode = slides.AudioPlayModePreset.AUTO
-                audio_frame.volume = slides.AudioVolumeMode.LOUD
+                    # set play mode and volume of the audio
+                    audio_frame.play_mode = slides.AudioPlayModePreset.AUTO
+                    audio_frame.volume = slides.AudioVolumeMode.LOUD
+        except:
+            pass
 
         # write the PPTX file to disk
-        presentation.save(filepath.split('/')[-1][:-4]+'-embeded.pptx',
+        presentation.save(filepath.split('.')[0]+'-embeded.pptx',
                           slides.export.SaveFormat.PPTX)
         return jsonify({'result': 'completed'})
 
